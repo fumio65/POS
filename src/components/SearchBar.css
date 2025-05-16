@@ -1,0 +1,6 @@
+/* Remove the built-in 'x' clear button on search inputs for WebKit browsers */
+input[type="search"].remove-clear::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
