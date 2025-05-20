@@ -17,7 +17,7 @@ def user_avatar_upload_path(instance, filename):
 def product_image_upload_path(instance, filename):
     ext = filename.split('.')[-1]
     filename = f"{uuid.uuid4()}.{ext}"
-    return os.path.join('profile_pics/users/', filename)
+    return os.path.join('profile_pics/products/', filename)
 
 
 class Account(models.Model):
@@ -25,7 +25,7 @@ class Account(models.Model):
     name = models.CharField(max_length=45)
     username = models.CharField(max_length=45, unique=True)
     email = models.EmailField(max_length=255, unique=True)
-    password = models.CharField(max_length=128)  # store hashed password
+    password = models.CharField(max_length=128)
     contact = models.CharField(
         max_length=15,
         validators=[
@@ -39,8 +39,7 @@ class Account(models.Model):
     is_staff = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        # Hash password before saving if it's not hashed already
-        if not self.password.startswith('pbkdf2_'):  # Django default hash starts with this prefix
+        if not self.password.startswith('pbkdf2_'):
             self.password = make_password(self.password)
         super().save(*args, **kwargs)
 
@@ -49,7 +48,6 @@ class Account(models.Model):
 
     def __str__(self):
         return self.username
-
 
 
 class UserProfile(models.Model):
@@ -76,35 +74,41 @@ class UserProfile(models.Model):
 
 
 class Product(models.Model):
-    class Meta:
-        verbose_name = "Product"
-        verbose_name_plural = "Products"
-
-    image = models.ImageField(upload_to=product_image_upload_path, blank=True, null=True)
-    name = models.CharField(max_length=255)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    category = models.CharField(max_length=100)
+    product_image = models.ImageField(upload_to=product_image_upload_path, blank=True, null=True)
+    product_name = models.CharField(max_length=45)
 
     def __str__(self):
-        return self.name
-
+        return self.product_name
+    
 
 class Color(models.Model):
-    color = models.CharField(max_length=30)
+    color_name = models.CharField(max_length=45)
 
     def __str__(self):
-        return self.name
-
-
+        return self.color_name
+    
 class Type(models.Model):
-    type = models.CharField(max_length=20)
+    product_type = models.CharField(max_length=45)
 
     def __str__(self):
-        return self.name
-
-
+        return self.product_type
+    
 class Size(models.Model):
-    label = models.CharField(max_length=5)
+    size_label = models.CharField(max_length=45)
 
     def __str__(self):
-        return self.label
+        return self.size_label
+    
+class Product_item(models.Model):
+    product_name = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='productName')
+    color_name = models.ForeignKey(Color, on_delete=models.CASCADE, related_name='productColor')
+    product_type = models.ForeignKey(Type, on_delete=models.CASCADE, related_name='productType')
+    size_label = models.ForeignKey(Size, on_delete=models.CASCADE, related_name='sizeLabel')
+
+    product_price = models.PositiveIntegerField()
+    product_quantity = models.PositiveBigIntegerField()
+
+    def __str__(self):
+        return f"{self.product_name.product_name} - {self.color_name.color_name} - {self.product_type.product_type} - {self.size_label.size_label}"
+
+

@@ -1,242 +1,176 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Account, UserProfile, Product, Color, Type, Size
-# ProductVariant, Transaction, TransactionItem
-from .serializer import AccountSerializer, UserProfileSerializer, ProductSerializer, ColorSerializer, TypeSerializer, SizeSerializer
-# ProductVariantSerializer, TransactionSerializer, TransactionItemSerializer
-
-
-# === Account Model ===
-@api_view(['GET', 'POST'])
-def account_list(request):
-    if request.method == 'GET':
-        accounts = Account.objects.all()
-        serializer = AccountSerializer(accounts, many=True, context={'request': request})
-        return Response(serializer.data)
+import json
+from .models import (
+    Account, UserProfile, Product, Color, Type, Size, Product_item
+)
+from .serializer import (
+    AccountSerializer, UserProfileSerializer, ProductSerializer, ColorSerializer, TypeSerializer, SizeSerializer, Product_itemSerializer
     
+    # Product_itemSerializer
+)
+
+
+# === Reusable Detail View Handler ===
+def get_object_or_404(model, pk):
+    try:
+        return model.objects.get(pk=pk)
+    except model.DoesNotExist:
+        return None
+
+
+def detail_handler(model, serializer_class, pk, request):
+    instance = get_object_or_404(model, pk)
+    if not instance:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = serializer_class(instance, context={'request': request})
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = serializer_class(instance, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def list_handler(model, serializer_class, request):
+    if request.method == 'GET':
+        items = model.objects.all()
+        serializer = serializer_class(items, many=True, context={'request': request})
+        return Response(serializer.data)
+
     elif request.method == 'POST':
-        serializer = AccountSerializer(data=request.data)
+        serializer = serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST'])  # Only allow POST
+def login_view(request):
+    try:
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        account = Account.objects.get(username=username)
+
+        if not account.is_active:
+            return Response({'error': 'Account is inactive.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not account.check_password(password):
+            return Response({'error': 'Invalid password.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({'message': 'Login successful!', 'user': account.username})
+
+    except Account.DoesNotExist:
+        return Response({'error': 'Account not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# === Account Views ===
+@api_view(['GET', 'POST'])
+def account_list(request):
+    return list_handler(Account, AccountSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def account_details(request, pk):
-    try:
-        account = Account.objects.get(pk=pk)
-    except Account.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    return detail_handler(Account, AccountSerializer, pk, request)
 
-    if request.method == 'GET':
-        serializer = AccountSerializer(account)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = AccountSerializer(account, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
-        account.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-
-# === UserProfile Model ===
+# === UserProfile Views ===
 @api_view(['GET', 'POST'])
 def user_list(request):
-    if request.method == 'GET':
-        user = UserProfile.objects.all()
-        serializer = UserProfileSerializer(user, many=True, context={'request': request})
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        serializer = UserProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    return list_handler(UserProfile, UserProfileSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def user_details(request, pk):
-    try:
-        user = UserProfile.objects.get(pk=pk)
-    except UserProfile.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        serializer = UserProfileSerializer(user)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = UserProfileSerializer(user, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    return detail_handler(UserProfile, UserProfileSerializer, pk, request)
 
 
-# === UserProfile Model ===
+# === Product Balloons Views ===
 @api_view(['GET', 'POST'])
-def product_list(request):
-    if request.method == 'GET':
-        product = Product.objects.all()
-        serializer = ProductSerializer(product, many=True, context={'request': request})
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+def balloons_list(request):
+    return list_handler(Product, ProductSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def product_details(request, pk):
-    try:
-        user = Product.objects.get(pk=pk)
-    except ProductSerializer.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        serializer = ProductSerializer(user)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = ProductSerializer(user, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+def balloons_details(request, pk):
+    return detail_handler(Product, ProductSerializer, pk, request)
 
 
-
-# === Color Model ===
+# === Color Views ===
 @api_view(['GET', 'POST'])
 def color_list(request):
-    if request.method == 'GET':
-        color = Color.objects.all()
-        serializer = ColorSerializer(color, many=True, context={'request': request})
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        serializer = ColorSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    return list_handler(Color, ColorSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def color_details(request, pk):
-    try:
-        color = Color.objects.get(pk=pk)
-    except ColorSerializer.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        serializer = ColorSerializer(color)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = ColorSerializer(color, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
-        color.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    return detail_handler(Color, ColorSerializer, pk, request)
 
 
-# === Type Model ===
+
+# === Type Views ===
 @api_view(['GET', 'POST'])
 def type_list(request):
-    if request.method == 'GET':
-        type = Type.objects.all()
-        serializer = TypeSerializer(type, many=True, context={'request': request})
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        serializer = TypeSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    return list_handler(Type, TypeSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def type_details(request, pk):
-    try:
-        type = Type.objects.get(pk=pk)
-    except TypeSerializer.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        serializer = TypeSerializer(type)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = TypeSerializer(type, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
-        type.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
+    return detail_handler(Type, TypeSerializer, pk, request)
 
-# === Type Model ===
+
+# === Size Views ===
 @api_view(['GET', 'POST'])
 def size_list(request):
-    if request.method == 'GET':
-        size = Size.objects.all()
-        serializer = SizeSerializer(size, many=True, context={'request': request})
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        serializer = SizeSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    return list_handler(Size, SizeSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def size_details(request, pk):
-    try:
-        size = Size.objects.get(pk=pk)
-    except SizeSerializer.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        serializer = SizeSerializer(size)
-        return Response(serializer.data)
-    
-    elif request.method == 'PUT':
-        serializer = SizeSerializer(size, many=True, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    elif request.method == 'DELETE':
-        type.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    return detail_handler(Size, SizeSerializer, pk, request)
+
+
+# === Product_item Views ===
+@api_view(['GET', 'POST'])
+def product_item_list(request):
+    return list_handler(Product_item, Product_itemSerializer, request)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def product_item_details(request, pk):
+    return detail_handler(Product_item, Product_itemSerializer, pk, request)
+
+# # === Product_image Views ===
+# @api_view(['GET', 'POST'])
+# def product_image_list(request):
+#     return list_handler(Product_item, Product_itemSerializer, request)
+
+# @api_view(['GET', 'PUT', 'DELETE'])
+# def product_image_details(request, pk):
+#     return detail_handler(Product_item, Product_itemSerializer, pk, request)
+
+
+
+# # === Product Variant Views ===
+# @api_view(['GET', 'POST'])
+# def product_variant_list(request):
+#     return list_handler(ProductVariant, ProductVariantSerializer, request)
+
+# @api_view(['GET', 'PUT', 'DELETE'])
+# def product_variant_details(request, pk):
+#     return detail_handler(ProductVariant, ProductVariantSerializer, pk, request)
+
+
+# # === Product Color Mapping Views ===
+# @api_view(['GET', 'POST'])
+# def product_color_list(request):
+#     return list_handler(ProductColor, ProductColorSerializer, request)
+
+# @api_view(['GET', 'PUT', 'DELETE'])
+# def product_color_details(request, pk):
+#     return detail_handler(ProductColor, ProductColorSerializer, pk, request)

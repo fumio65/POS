@@ -1,8 +1,30 @@
-# serializers.py
 from rest_framework import serializers
-from .models import Account, UserProfile, Product, Color, Type, Size
+from django.contrib.auth.hashers import make_password
+from .models import (
+    Account,
+    UserProfile,
+    Product,
+    Color,
+    Type,
+    Size,
+    Product_item
+)
 
+# --- UserProfile Serializer with PIN validation ---
+class UserProfileSerializer(serializers.ModelSerializer):
+    def validate_pin(self, value):
+        if not 10000000 <= value <= 99999999:
+            raise serializers.ValidationError("PIN must be exactly 8 digits.")
+        return value
+
+    class Meta:
+        model = UserProfile
+        fields = '__all__'
+
+
+# --- Account Serializer with nested UserProfiles ---
 class AccountSerializer(serializers.ModelSerializer):
+    users = UserProfileSerializer(many=True, read_only=True)
     profile_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -10,7 +32,6 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'is_staff', 'is_active']
 
-    
     def get_profile_url(self, obj):
         request = self.context.get('request')
         if obj.profile and hasattr(obj.profile, 'url'):
@@ -21,7 +42,7 @@ class AccountSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         instance = self.Meta.model(**validated_data)
         if password:
-            instance.set_password(password)
+            instance.password = make_password(password)
         instance.save()
         return instance
 
@@ -30,16 +51,10 @@ class AccountSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
-            instance.set_password(password)
+            instance.password = make_password(password)
         instance.save()
         return instance
-
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserProfile
-        fields = '__all__'
-
+    
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,12 +67,20 @@ class ColorSerializer(serializers.ModelSerializer):
         model = Color
         fields = '__all__'
 
+
 class TypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Type
         fields = '__all__'
 
+
 class SizeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Size
+        fields = '__all__'
+
+
+class Product_itemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product_item
         fields = '__all__'
