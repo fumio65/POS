@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const buttonPass = [
   { button: "1" },
@@ -10,110 +10,152 @@ const buttonPass = [
   { button: "7" },
   { button: "8" },
   { button: "9" },
-  { button: "C" }, // Clear
+  { button: "C" },
   { button: "0" },
-  { icon: "/icons/delete.svg" }, // Backspace
+  { icon: "/icons/delete.svg" },
 ];
 
-function UserPin({ onLoginSuccess }) {
-  // Add a state for names as well as pin
-  const [names, setNames] = useState("");
+function UserPin({ selectedUser, onLoginSuccess }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Reset PIN and error when selectedUser changes (after initialization)
+  useEffect(() => {
+    if (!isInitializing) {
+      setPin("");
+      setError("");
+    }
+  }, [selectedUser, isInitializing]);
+
+  // Mark initialization as complete after first render
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleButtonClick = (val) => {
     if (val === "C") {
       setPin("");
     } else if (val === "backspace") {
       setPin((prev) => prev.slice(0, -1));
-    } else {
+    } else if (pin.length < 8) {
       setPin((prev) => prev + val);
     }
   };
 
-  // Form submission: call the authentication API
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    if (!names || !pin) {
-      setError("Both name and PIN are required.");
-      return;
-    }
-    // Prepare the payload matching your backend expected keys
-    const payload = {
-      names: names,
-      pin: parseInt(pin, 10),
-    };
+    if (isSubmitting || !selectedUser || pin.length !== 8) return;
 
-    fetch("/api/userauthentication", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          // Convert error response to JSON for error message
-          return res.json().then((data) => {
-            throw new Error(data.error || "Authentication failed.");
-          });
-        }
-        return res.json();
-      })
-      .then((data) => {
-        // On success, call the provided callback with user profile data
-        onLoginSuccess(data.user_profile);
-      })
-      .catch((err) => {
-        setError(err.message);
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        names: selectedUser.names,
+        pin: parseInt(pin, 10),
+      };
+
+      console.log("Submitting authentication:", payload);
+
+      const response = await fetch("http://localhost:8000/api/user/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+
+      const responseText = await response.text();
+      console.log("Authentication response:", responseText);
+
+      if (!response.ok) {
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.error || "Authentication failed");
+        } catch {
+          throw new Error(response.statusText || "Authentication failed");
+        }
+      }
+
+      const data = JSON.parse(responseText);
+      if (!data?.user_profile) {
+        throw new Error("Invalid response format");
+      }
+
+      onLoginSuccess(data.user_profile);
+    } catch (err) {
+      console.error("Authentication error:", err);
+      setError(err.message || "An unknown error occurred");
+      setPin("");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="h-105 w-90 p-4">
+    <form onSubmit={handleSubmit} className="w-90 p-4">
       <input
-        className="w-full py-3 text-lg text-center text-white font-bold focus:outline-none"
+        className="w-full py-3 text-lg text-center text-white font-bold focus:outline-none bg-transparent border-b-2 border-white mb-6"
         type="password"
         placeholder="Enter your PIN"
         value={pin}
         readOnly
       />
-      <div
-        className="grid gap-4 mt-4"
-        style={{
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gridTemplateRows: "repeat(4, minmax(0, 1fr))",
-        }}
-      >
+      
+      {/* Keypad */}
+      <div className="grid gap-4 mt-4 grid-cols-3 grid-rows-4">
         {buttonPass.map((item, idx) => (
           <button
             key={idx}
             type="button"
-            className="border border-gray-300 bg-white/5 backdrop-blur-sm rounded-full text-white text-3xl py-2 hover:opacity-50 transition duration-500 cursor-pointer"
+            className={`border border-gray-300 rounded-full text-white text-3xl py-2 transition duration-200 flex items-center justify-center ${
+              isSubmitting
+                ? "bg-gray-600 cursor-not-allowed"
+                : "bg-white/5 backdrop-blur-sm hover:opacity-50 cursor-pointer"
+            }`}
             onClick={() => {
-              if (item.button) {
-                handleButtonClick(item.button);
-              } else if (item.icon) {
-                handleButtonClick("backspace");
+              if (!isSubmitting) {
+                if (item.button) {
+                  handleButtonClick(item.button);
+                } else if (item.icon) {
+                  handleButtonClick("backspace");
+                }
               }
             }}
+            disabled={isSubmitting}
           >
             {item.button ? (
               item.button
             ) : item.icon ? (
-              <img className="h-8 w-8 mx-auto" src={item.icon} alt="Icon" />
+              <img className="h-8 w-8" src={item.icon} alt="Backspace" />
             ) : null}
           </button>
         ))}
       </div>
-      {/* Optionally display error messages */}
-      {error && <div className="text-red-500 mt-2 text-center">{error}</div>}
+      
+      {/* Error message */}
+      {error && (
+        <div className="text-red-500 mt-4 text-center animate-pulse">
+          {error}
+        </div>
+      )}
+      
+      {/* Submit button */}
       <button
         type="submit"
-        className="w-full mt-4 py-2 bg-blue-500 text-white font-bold rounded-full hover:bg-blue-600 transition duration-200"
+        className={`w-full mt-6 py-3 text-white font-bold rounded-full transition duration-200 ${
+          isSubmitting || !selectedUser || pin.length !== 8
+            ? "bg-gray-600 cursor-not-allowed"
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
+        disabled={isSubmitting || !selectedUser || pin.length !== 8}
       >
-        Unlock
+        {isSubmitting ? "Verifying..." : "Unlock"}
       </button>
     </form>
   );

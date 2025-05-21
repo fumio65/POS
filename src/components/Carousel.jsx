@@ -6,7 +6,7 @@ const GAP = 20;
 const CARD_FULL_WIDTH = CARD_WIDTH + GAP;
 const NUM_COPIES = 3;
 
-export default function Carousel() {
+export default function Carousel({ onSelectUser }) {
   const parentRef = useRef(null);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,18 +14,26 @@ export default function Carousel() {
   const scrollRafRef = useRef(null);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:8000/api/users/")
-      .then((res) => {
-        const fetchedProfiles = res.data.results || res.data;
+    const fetchProfiles = async () => {
+      try {
+        const response = await axios.get("http://localhost:8000/api/users/");
+        const fetchedProfiles = response.data.results || response.data;
         setProfiles(fetchedProfiles);
-        setLoading(false);
-      })
-      .catch((err) => {
+        
+        // Set initial selected user
+        if (fetchedProfiles.length > 0) {
+          const initialCenterIndex = Math.floor(fetchedProfiles.length / 2);
+          onSelectUser(fetchedProfiles[initialCenterIndex]);
+        }
+      } catch (err) {
         console.error("Failed to fetch profiles:", err);
+      } finally {
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchProfiles();
+  }, [onSelectUser]);
 
   const singleListLength = profiles.length;
   const loopProfiles = [...profiles, ...profiles, ...profiles];
@@ -58,6 +66,8 @@ export default function Carousel() {
     });
 
     setCurrentIndex(closestIdx);
+    const actualIdx = closestIdx % singleListLength;
+    onSelectUser(profiles[actualIdx]);
   };
 
   useLayoutEffect(() => {
@@ -125,8 +135,8 @@ export default function Carousel() {
     }, 500);
   };
 
-  if (loading) return <div>Loading profiles...</div>;
-  if (profiles.length === 0) return <div>No profiles to display.</div>;
+  if (loading) return <div className="text-white">Loading profiles...</div>;
+  if (profiles.length === 0) return <div className="text-white">No profiles to display.</div>;
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -153,8 +163,8 @@ export default function Carousel() {
                 style={{ cursor: "pointer", willChange: "transform" }}
               >
                 <img
-                  src={p.profile_url}
-                  alt={p.profile_url}
+                  src={p.profile_url || "/images/default-profile.png"}
+                  alt={p.names}
                   className="w-25 h-25 border-4 border-white rounded-full mx-auto mb-4 object-cover"
                 />
                 <div className="text-white font-bold">{p.names}</div>

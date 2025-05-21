@@ -1,42 +1,37 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Carousel from "../../components/Carousel.jsx";
 import UserPin from "../../components/UserPin.jsx";
+import ErrorBoundary from "../../components/ErrorBoundary"; // Update this path
+
+function ErrorFallback({ error }) {
+  return (
+    <div role="alert" className="p-4 bg-red-100 text-red-700 rounded">
+      <p>Something went wrong:</p>
+      <pre>{error.message}</pre>
+    </div>
+  );
+}
 
 function User() {
-  // Store all user profiles fetched from the backend
-  const [profiles, setProfiles] = useState([]);
-  // Optionally store the logged-in user's info
-  const [currentUser, setCurrentUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const navigate = useNavigate();
 
-  // Fetch profiles from your API when component mounts
-  useEffect(() => {
-    fetch("/api/user_list")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Failed to fetch profiles");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        // Here, data should be an array of user profiles from your UserProfileSerializer
-        setProfiles(data);
-      })
-      .catch((err) => console.error("Error:", err));
-  }, []);
-
-  // Callback to handle a successful login
   const handleLoginSuccess = (userData) => {
-    setCurrentUser(userData);
-    // Optionally, you might refresh profiles here too:
-    // setProfiles((prev) => [...prev, userData]);  
+    console.log("Login successful:", userData);
+    localStorage.setItem("currentUser", JSON.stringify(userData));
+    navigate("/home");
   };
 
   return (
     <div className="bg-[url('/images/background.png')] bg-no-repeat bg-cover flex flex-col min-h-screen items-center justify-around">
-      {/* Pass the profiles loaded from backend to the Carousel */}
-      <Carousel profiles={profiles} />
-      {/* Provide the login success callback to the UserPin component */}
-      <UserPin onLoginSuccess={handleLoginSuccess} />
+      <ErrorBoundary fallback={<ErrorFallback />}>
+        <Carousel onSelectUser={setSelectedUser} />
+        <UserPin 
+          selectedUser={selectedUser}
+          onLoginSuccess={handleLoginSuccess} 
+        />
+      </ErrorBoundary>
     </div>
   );
 }
