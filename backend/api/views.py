@@ -73,6 +73,46 @@ def login_view(request):
 
     except Account.DoesNotExist:
         return Response({'error': 'Account not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@api_view(['POST'])
+def userauthentication(request):
+    """
+    Authenticate UserProfile by names and pin.
+    Expected POST data: { "names": "John Doe", "pin": 12345678 }
+    """
+    names = request.data.get('names')
+    pin = request.data.get('pin')
+
+    if not names or not pin:
+        return Response({'error': 'Both names and pin are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Pin is integer, so convert if it comes as string
+        pin_int = int(pin)
+    except ValueError:
+        return Response({'error': 'PIN must be a number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user_profile = UserProfile.objects.get(names=names, pin=pin_int)
+        # You could add additional checks here (like if the related Account is active)
+        if not user_profile.account.is_active:
+            return Response({'error': 'Account is inactive.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Successful login response
+        return Response({
+            'message': 'Login successful!',
+            'user_profile': {
+                'id': user_profile.id,
+                'names': user_profile.names,
+                'role': user_profile.role,
+                'account': user_profile.account.username,
+                # optionally other fields you want to expose
+            }
+        })
+
+    except UserProfile.DoesNotExist:
+        return Response({'error': 'Invalid names or PIN.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 # === Account Views ===

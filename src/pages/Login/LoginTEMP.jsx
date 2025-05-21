@@ -1,12 +1,100 @@
-import React from 'react'
-import InputForm from './components/InputForm.jsx'
+import React, { useState, useEffect } from 'react';
+import InputField from './components/InputField.jsx';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const LoginTEMP = () => {
+function LoginTEMP() {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      navigate('/user');
+    }
+  }, [navigate]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post(
+        'http://localhost:8000/api/login/',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data.message === 'Login successful!') {
+        localStorage.setItem('user', JSON.stringify(response.data));
+        navigate('/user');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className='flex w-screen h-screen bg-cover py-[32px] px-[32px] gap-16'>
-      <InputForm />
-    </div>
-  )
+    <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
+      {error && (
+        <div className="text-red-500 text-sm text-center">{error}</div>
+      )}
+      
+      <InputField 
+        label="Username" 
+        type="text" 
+        placeholder="Username"
+        icon="/icons/user.svg"
+        name="username"
+        value={formData.username}
+        onChange={handleChange}
+        required
+      />
+
+      <InputField 
+        label="Password" 
+        type="password" 
+        placeholder="Password"
+        icon="/icons/lock.svg"
+        name="password"
+        value={formData.password}
+        onChange={handleChange}
+        required
+      />
+
+      <Link className='text-sm font-bold text-active' to="/forgot-password">
+        Forgot Password?
+      </Link>
+      
+      <button 
+        className='bg-active text-white font-bold rounded-full h-[35px] hover:bg-opacity-90 transition disabled:opacity-50' 
+        type="submit"
+        disabled={loading}
+      >
+        {loading ? 'Logging in...' : 'Login'}
+      </button>
+    </form>
+  );
 }
 
-export default LoginTEMP
+export default LoginTEMP;

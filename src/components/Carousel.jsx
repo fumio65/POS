@@ -1,6 +1,23 @@
 import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
 
-import profiles from "../data/profiles";
+
+  const profiles = [
+    {
+      name: "Maria Lopez",
+      role: "Cashier",
+      imageUrl: "/images/maria.jpg",
+    },
+    {
+      name: "John Cruz",
+      role: "Manager",
+      imageUrl: "/images/john.jpg",
+    },
+    {
+      name: "Ella Santos",
+      role: "Staff",
+      imageUrl: "/images/ella.jpg",
+    },
+  ];
 
 const CARD_WIDTH = 208;
 const GAP = 20;
