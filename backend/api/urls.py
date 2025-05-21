@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import login_view, account_list, account_details, user_list, user_details, balloons_list, balloons_details, color_list, color_details, type_list, type_details, size_list, size_details, product_item_list, product_item_details
+from .views import login_view, userauthentication, account_list, account_details, user_list, user_details, balloons_list, balloons_details, color_list, color_details, type_list, type_details, size_list, size_details, product_item_list, product_item_details
 
 urlpatterns = [
   path('login/', login_view, name='login'),
+  path('user/', userauthentication, name='user'),
 
   path('accounts/', account_list, name='account-list'),
   path('accounts/<int:pk>/', account_details, name='account-detail'),
