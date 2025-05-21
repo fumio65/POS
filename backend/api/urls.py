@@ -23,8 +23,7 @@ urlpatterns = [
   path('products/sizes/', size_list, name='size-list'),
   path('products/sizes/<int:pk>/',size_details, name='size-details'), 
 
-  path('products/product_item/', product_item_list, name='size-list'),
-  path('products/product_item/<int:pk>/',product_item_details, name='size-details'), 
+  path('products/product_item/', product_item_list, name='product-item-list'),
+  path('products/product_item/<int:pk>/',product_item_details, name='product-item-detail'), 
 
-]
-
+] 

@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 import json
 from .models import (
     Account, UserProfile, Product, Color, Type, Size, Product_item
@@ -11,7 +12,7 @@ from .serializer import (
     # Product_itemSerializer
 )
 
-
+    
 # === Reusable Detail View Handler ===
 def get_object_or_404(model, pk):
     try:
@@ -120,15 +121,20 @@ def userauthentication(request):
 def account_list(request):
     return list_handler(Account, AccountSerializer, request)
 
+
+# === UserProfile Views ===
+@api_view(['GET'])
+def user_list(request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 10
+    items = UserProfile.objects.all()
+    result_page = paginator.paginate_queryset(items, request)
+    serializer = UserProfileSerializer(result_page, many=True, context={'request': request})
+    return paginator.get_paginated_response(serializer.data)
+
 @api_view(['GET', 'PUT', 'DELETE'])
 def account_details(request, pk):
     return detail_handler(Account, AccountSerializer, pk, request)
-
-
-# === UserProfile Views ===
-@api_view(['GET', 'POST'])
-def user_list(request):
-    return list_handler(UserProfile, UserProfileSerializer, request)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def user_details(request, pk):
@@ -184,33 +190,3 @@ def product_item_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 def product_item_details(request, pk):
     return detail_handler(Product_item, Product_itemSerializer, pk, request)
-
-# # === Product_image Views ===
-# @api_view(['GET', 'POST'])
-# def product_image_list(request):
-#     return list_handler(Product_item, Product_itemSerializer, request)
-
-# @api_view(['GET', 'PUT', 'DELETE'])
-# def product_image_details(request, pk):
-#     return detail_handler(Product_item, Product_itemSerializer, pk, request)
-
-
-
-# # === Product Variant Views ===
-# @api_view(['GET', 'POST'])
-# def product_variant_list(request):
-#     return list_handler(ProductVariant, ProductVariantSerializer, request)
-
-# @api_view(['GET', 'PUT', 'DELETE'])
-# def product_variant_details(request, pk):
-#     return detail_handler(ProductVariant, ProductVariantSerializer, pk, request)
-
-
-# # === Product Color Mapping Views ===
-# @api_view(['GET', 'POST'])
-# def product_color_list(request):
-#     return list_handler(ProductColor, ProductColorSerializer, request)
-
-# @api_view(['GET', 'PUT', 'DELETE'])
-# def product_color_details(request, pk):
-#     return detail_handler(ProductColor, ProductColorSerializer, pk, request)

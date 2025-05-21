@@ -12,14 +12,18 @@ from .models import (
 
 # --- UserProfile Serializer with PIN validation ---
 class UserProfileSerializer(serializers.ModelSerializer):
-    def validate_pin(self, value):
-        if not 10000000 <= value <= 99999999:
-            raise serializers.ValidationError("PIN must be exactly 8 digits.")
-        return value
-
+    profile_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = UserProfile
-        fields = '__all__'
+        fields = ['id', 'names', 'role', 'profile_url']
+        read_only_fields = fields
+
+    def get_profile_url(self, obj):
+        request = self.context.get('request')
+        if obj.profile:
+            return request.build_absolute_uri(obj.profile.url)
+        return None  # Return None if no image exists
 
 
 # --- Account Serializer with nested UserProfiles ---
@@ -54,12 +58,6 @@ class AccountSerializer(serializers.ModelSerializer):
             instance.password = make_password(password)
         instance.save()
         return instance
-    
-
-class ProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = '__all__'
 
 
 class ColorSerializer(serializers.ModelSerializer):
@@ -81,6 +79,18 @@ class SizeSerializer(serializers.ModelSerializer):
 
 
 class Product_itemSerializer(serializers.ModelSerializer):
+    product_name_display = serializers.CharField(source='product_name.product_name', read_only=True)
+    color_name_display = serializers.CharField(source='color_name.color_name', read_only=True)
+    product_type_display = serializers.CharField(source='product_type.product_type', read_only=True)
+    size_label_display = serializers.CharField(source='size_label.size_label', read_only=True)
+
     class Meta:
         model = Product_item
+        fields = '__all__'
+
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
         fields = '__all__'
